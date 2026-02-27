@@ -1,11 +1,11 @@
+// Файл: app/components/MapComponent.tsx
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useState } from 'react';
+import { mockPosts } from '../data/mockPosts'; // Импортируем нашу "базу"
 
-// Фикс для иконок Leaflet (чтобы они не пропадали в Next.js)
 const icon = L.icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -14,48 +14,30 @@ const icon = L.icon({
 });
 
 export default function MapComponent() {
-  const [markers, setMarkers] = useState([
-    { id: 1, position: [54.86, 69.13] as [number, number], title: "Яма на Абая" }, // Координаты Петропавловска
-    { id: 2, position: [54.87, 69.15] as [number, number], title: "Сломан фонарь" }
-  ]);
-
-  // Функция для добавления маркера по клику
-  function LocationMarker() {
-    useMapEvents({
-      click(e) {
-        const newMarker = {
-          id: Date.now(),
-          position: [e.latlng.lat, e.latlng.lng] as [number, number],
-          title: "Новая проблема"
-        };
-        setMarkers([...markers, newMarker]);
-      },
-    });
-    return null;
-  }
-
   return (
-    <div className="h-full w-full rounded-3xl overflow-hidden border-4 border-white shadow-xl">
+    <div className="h-[500px] w-full rounded-2xl overflow-hidden shadow-lg border-2 border-gray-100">
       <MapContainer 
-        center={[54.8667, 69.15]} 
+        center={[50.2839, 57.1670]} // Фокус на центре города
         zoom={13} 
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          attribution='&copy; OpenStreetMap'
         />
         
-        {markers.map((m) => (
-          <Marker key={m.id} position={m.position} icon={icon}>
+        {/* Отрисовываем маркеры прямо из нашей базы данных */}
+        {mockPosts.map((post) => (
+          <Marker key={post.id} position={[post.lat, post.lng]} icon={icon}>
             <Popup>
-              <div className="font-bold">{m.title}</div>
-              <button className="text-xs text-blue-600 mt-1 underline">Подробнее</button>
+              <div className="p-1">
+                <span className="text-xs text-blue-500 font-bold uppercase">{post.category}</span>
+                <h3 className="font-bold text-sm my-1">{post.title}</h3>
+                <p className="text-xs text-gray-600">{post.status}</p>
+              </div>
             </Popup>
           </Marker>
         ))}
-        
-        <LocationMarker />
       </MapContainer>
     </div>
   );

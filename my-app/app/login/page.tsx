@@ -1,18 +1,66 @@
-"use client"; // Обязательно для использования useState и useRouter
+"use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Mail, Lock, LogIn, UserPlus, User } from 'lucide-react';
+import { supabase } from '../lib/supabase'; // Импортируем наш клиент базы
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true); // Состояние: true = Вход, false = Регистрация
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState(''); // Состояние для имени
+  const [loading, setLoading] = useState(false);
+  
   const router = useRouter();
 
-  // Функция симуляции входа для MVP
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault(); // Останавливаем перезагрузку страницы
-    // Здесь позже будет реальный запрос к базе данных
-    router.push('/feed'); // Перекидываем пользователя в ленту
+  // Основная функция обработки формы
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    if (isLogin) {
+      // --- ЛОГИКА ВХОДА ---
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        alert("Ошибка входа: " + error.message);
+      } else {
+        router.push('/feed');
+      }
+    } else {
+      // --- ЛОГИКА РЕГИСТРАЦИИ ---
+      // 1. Создаем пользователя в Auth
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (authError) {
+        alert("Ошибка регистрации: " + authError.message);
+      } else if (data.user) {
+        // 2. Если Auth прошел, записываем имя в нашу таблицу users
+        const { error: dbError } = await supabase
+          .from('users')
+          .insert([{ 
+            id: data.user.id, 
+            email, 
+            full_name: fullName,
+            role: 'citizen' 
+          }]);
+
+        if (dbError) {
+          alert("Ошибка БД: " + dbError.message);
+        } else {
+          alert("Аккаунт создан! Теперь войдите.");
+          setIsLogin(true); // Переключаем на вход
+        }
+      }
+    }
+    setLoading(false);
   };
 
   return (
@@ -25,7 +73,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Форма с обработчиком отправки */}
         <form onSubmit={handleSubmit} className="space-y-5">
           
           {/* Поле "Имя" показывается ТОЛЬКО при регистрации */}
@@ -34,7 +81,14 @@ export default function LoginPage() {
               <label className="block text-sm font-semibold text-gray-700 mb-2">Имя и Фамилия</label>
               <div className="flex rounded-2xl bg-gray-50 border border-gray-200 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all p-1">
                 <div className="pl-3 flex items-center text-gray-400"><User size={18} /></div>
-                <input required type="text" placeholder="Иван Иванов" className="flex-1 bg-transparent p-3 text-sm outline-none" />
+                <input 
+                  required 
+                  type="text" 
+                  placeholder="Иван Иванов" 
+                  className="flex-1 bg-transparent p-3 text-sm outline-none"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                />
               </div>
             </div>
           )}
@@ -43,7 +97,14 @@ export default function LoginPage() {
             <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
             <div className="flex rounded-2xl bg-gray-50 border border-gray-200 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all p-1">
               <div className="pl-3 flex items-center text-gray-400"><Mail size={18} /></div>
-              <input required type="email" placeholder="example@mail.com" className="flex-1 bg-transparent p-3 text-sm outline-none" />
+              <input 
+                required 
+                type="email" 
+                placeholder="example@mail.com" 
+                className="flex-1 bg-transparent p-3 text-sm outline-none"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
           </div>
 
@@ -51,22 +112,31 @@ export default function LoginPage() {
             <label className="block text-sm font-semibold text-gray-700 mb-2">Пароль</label>
             <div className="flex rounded-2xl bg-gray-50 border border-gray-200 focus-within:border-blue-500 focus-within:ring-4 focus-within:ring-blue-500/10 transition-all p-1">
               <div className="pl-3 flex items-center text-gray-400"><Lock size={18} /></div>
-              <input required type="password" placeholder="••••••••" className="flex-1 bg-transparent p-3 text-sm outline-none" />
+              <input 
+                required 
+                type="password" 
+                placeholder="••••••••" 
+                className="flex-1 bg-transparent p-3 text-sm outline-none"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </div>
-            {isLogin && (
-              <div className="flex justify-end mt-2">
-                <button type="button" className="text-xs text-blue-600 font-medium hover:underline">Забыли пароль?</button>
-              </div>
-            )}
           </div>
 
-          <button type="submit" className="w-full flex justify-center items-center gap-2 py-4 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all active:scale-[0.98] mt-4">
-            {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />}
-            {isLogin ? 'Войти' : 'Зарегистрироваться'}
+          <button 
+            type="submit" 
+            disabled={loading}
+            className={`w-full flex justify-center items-center gap-2 py-4 rounded-2xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all active:scale-[0.98] mt-4 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {loading ? 'Загрузка...' : (
+              <>
+                {isLogin ? <LogIn size={18} /> : <UserPlus size={18} />}
+                {isLogin ? 'Войти' : 'Зарегистрироваться'}
+              </>
+            )}
           </button>
         </form>
 
-        {/* Переключатель Вход <-> Регистрация */}
         <div className="mt-8 text-center text-sm text-gray-500">
           {isLogin ? 'Нет аккаунта? ' : 'Уже есть аккаунт? '}
           <button 

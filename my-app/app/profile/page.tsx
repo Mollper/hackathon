@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Settings, Award, CheckCircle, Clock, Moon, Sun } from 'lucide-react';
+import Link from 'next/link'; // <-- Добавили импорт для перехода по страницам
 
 export default function ProfilePage() {
   const [isDark, setIsDark] = useState(false);
@@ -29,15 +30,27 @@ export default function ProfilePage() {
   return (
     <div className="p-4 md:p-8 transition-colors duration-300">
       
-      {/* Шапка с умной кнопкой */}
+      {/* Шапка с умной кнопкой и настройками */}
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-extrabold text-gray-900">Мой профиль</h1>
-        <button 
-          onClick={toggleGlobalTheme}
-          className="p-3 rounded-2xl bg-white transition-all shadow-sm border border-gray-200 flex items-center gap-2 font-medium text-sm text-gray-900"
-        >
-          {isDark ? <><Sun size={18} className="text-yellow-500" /> Светлая</> : <><Moon size={18} className="text-blue-600" /> Темная</>}
-        </button>
+        
+        {/* Обернули кнопки в один блок, чтобы они стояли рядом */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={toggleGlobalTheme}
+            className="p-3 rounded-2xl bg-white transition-all shadow-sm border border-gray-200 flex items-center gap-2 font-medium text-sm text-gray-900"
+          >
+            {isDark ? <><Sun size={18} className="text-yellow-500" /> Светлая</> : <><Moon size={18} className="text-blue-600" /> Темная</>}
+          </button>
+
+          {/* <-- НОВАЯ КНОПКА НАСТРОЕК --> */}
+          <Link 
+            href="/settings"
+            className="p-3 rounded-2xl bg-white transition-all shadow-sm border border-gray-200 flex items-center justify-center text-gray-900 hover:bg-gray-50 active:scale-95"
+          >
+            <Settings size={20} />
+          </Link>
+        </div>
       </div>
 
       {/* Карточка пользователя */}

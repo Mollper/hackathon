@@ -1,66 +1,118 @@
-import Image from 'next/link'; // или обычный <img> для прототипа
+"use client";
 
-export default function HomeFeed() {
-  // Временные данные для прототипа
-  const posts = [
-    {
-      id: 1,
-      author: 'Айдос Н.',
-      category: 'Дороги',
-      status: 'В работе',
-      statusColor: 'bg-yellow-100 text-yellow-700',
-      description: 'Глубокая яма на перекрестке Абая - Пушкина. Машины пробивают колеса.',
-      time: '2 часа назад',
-      location: 'ул. Абая, 45',
-    },
-    {
-      id: 2,
-      author: 'Елена В.',
-      category: 'Освещение',
-      status: 'Решено',
-      statusColor: 'bg-green-100 text-green-700',
-      description: 'Не горят фонари во дворе уже неделю. Очень темно возвращаться домой.',
-      time: 'Вчера',
-      location: 'мкр. Береке, 12',
-    }
-  ];
+import { useState } from 'react';
+import { mockPosts } from '../data/mockPosts';
+
+export default function FeedPage() {
+  // Загружаем нашу "базу" в изменяемое состояние
+  const [posts, setPosts] = useState(mockPosts);
+
+  // Состояния для полей формы
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('ЖКХ');
+
+  // Функция отправки формы
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault(); // Останавливаем перезагрузку страницы
+
+    if (!title || !description) return; // Проверка на пустые поля
+
+    const newPost = {
+      id: Date.now(), // Генерируем уникальный номер
+      title: title,
+      description: description,
+      category: category,
+      status: "Новая",
+      author: "Текущий Пользователь", // В будущем здесь будет имя из профиля
+      date: "28 Февраля 2026",
+      // Ставим координаты где-то в центре Актобе для реалистичности
+      lat: 50.2850 + (Math.random() * 0.01), 
+      lng: 57.1600 + (Math.random() * 0.01),
+    };
+
+    // Добавляем новый пост в САМОЕ НАЧАЛО массива
+    setPosts([newPost, ...posts]);
+
+    // Очищаем форму после отправки
+    setTitle('');
+    setDescription('');
+  };
 
   return (
-    <div className="p-4 md:p-8">
-      <header className="mb-6 md:hidden">
-        <h1 className="text-2xl font-bold text-gray-800">Лента города</h1>
-      </header>
+    <div className="max-w-3xl mx-auto p-4 md:p-8">
+      <h1 className="text-3xl font-black mb-6 text-gray-800">Городская лента</h1>
+      
+      {/* --- ФОРМА СОЗДАНИЯ ПОСТА --- */}
+      <div className="bg-white p-6 rounded-2xl shadow-md border-2 border-blue-100 mb-8">
+        <h2 className="text-xl font-bold mb-4">Сообщить о проблеме</h2>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <input 
+            type="text" 
+            placeholder="Краткий заголовок (например: Яма во дворе)" 
+            className="border border-gray-200 rounded-xl p-3 outline-none focus:border-blue-500 transition"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+          />
+          
+          <textarea 
+            placeholder="Опишите проблему подробнее..." 
+            className="border border-gray-200 rounded-xl p-3 h-24 outline-none focus:border-blue-500 transition resize-none"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+          />
 
-      <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <select 
+              className="border border-gray-200 rounded-xl p-3 outline-none focus:border-blue-500 bg-white"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              <option value="ЖКХ">ЖКХ</option>
+              <option value="Дороги">Дороги</option>
+              <option value="Освещение">Освещение</option>
+              <option value="Экология">Экология</option>
+            </select>
+
+            <button 
+              type="submit" 
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition"
+            >
+              Отправить заявку
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* --- ЛЕНТА ПОСТОВ --- */}
+      <div className="flex flex-col gap-6">
         {posts.map((post) => (
-          <article key={post.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            {/* Шапка поста */}
-            <div className="p-4 flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-tr from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {post.author[0]}
-                </div>
-                <div>
-                  <h3 className="font-semibold text-sm">{post.author}</h3>
-                  <p className="text-xs text-gray-500">{post.time} • {post.location}</p>
-                </div>
+          <div key={post.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">
+                  {post.category}
+                </span>
+                <h3 className="text-xl font-bold mt-2 text-gray-900">{post.title}</h3>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${post.statusColor}`}>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full ${
+                post.status === 'Решено' ? 'bg-green-100 text-green-700' : 
+                post.status === 'В работе' ? 'bg-yellow-100 text-yellow-700' : 
+                'bg-red-100 text-red-700'
+              }`}>
                 {post.status}
               </span>
             </div>
-
-            {/* Заглушка для фото (в реальности тут будет тег img или Image из Next.js) */}
-            <div className="w-full h-48 bg-gray-200 flex items-center justify-center text-gray-400">
-              [Фото проблемы]
+            
+            <p className="text-gray-600 mb-4">{post.description}</p>
+            
+            <div className="flex justify-between items-center text-sm text-gray-400 border-t pt-4 mt-2">
+              <span>Автор: {post.author}</span>
+              <span>{post.date}</span>
             </div>
-
-            {/* Описание */}
-            <div className="p-4">
-              <span className="text-xs font-bold text-blue-600 uppercase tracking-wider">{post.category}</span>
-              <p className="mt-2 text-gray-800 text-sm">{post.description}</p>
-            </div>
-          </article>
+          </div>
         ))}
       </div>
     </div>
