@@ -1,5 +1,4 @@
 "use client";
-
 import dynamic from 'next/dynamic';
 import { MapPin } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -38,8 +37,10 @@ export default function MapPage() {
   const activeCount = posts.filter((p) => p.status !== 'resolved' && p.status !== 'rejected').length;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] md:h-screen p-4 md:p-8">
-      <div className="flex justify-between items-center mb-6">
+    // h-[100dvh] учитывает мобильный браузер (адресная строка)
+    // pb-16 — отступ под нижнюю навигацию на мобиле
+    <div className="flex flex-col h-[100dvh] pb-16 md:pb-0 md:h-screen p-4 md:p-8">
+      <div className="flex justify-between items-center mb-4">
         <div>
           <h1 className="text-2xl font-black flex items-center gap-2">
             <MapPin className="text-blue-600" /> Карта проблем
@@ -54,8 +55,8 @@ export default function MapPage() {
         )}
       </div>
 
-      <div className="flex-1 relative">
-        {/* Передаём реальные посты в MapComponent */}
+      {/* min-h-0 обязателен — без него flex-1 не ограничивает высоту и карта уходит за nav */}
+      <div className="flex-1 min-h-0 relative rounded-2xl overflow-hidden">
         <Map posts={posts} />
       </div>
     </div>
