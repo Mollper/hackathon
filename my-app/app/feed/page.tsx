@@ -60,7 +60,6 @@ export default function FeedPage() {
   const [sortBy, setSortBy] = useState('created_at');
   const [userVotes, setUserVotes] = useState<Set<string>>(new Set());
 
-  // Быстрая форма создания
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('other');
@@ -89,7 +88,9 @@ export default function FeedPage() {
     });
   }, [profile]);
 
-  const toggleVote = async (postId: string) => {
+  const toggleVote = async (e: React.MouseEvent, postId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (!profile) return;
     const voted = userVotes.has(postId);
     if (voted) {
@@ -125,7 +126,6 @@ export default function FeedPage() {
     <div className="max-w-3xl mx-auto p-4 md:p-8">
       <h1 className="text-3xl font-black mb-6 text-gray-800">Городская лента</h1>
 
-      {/* Быстрая форма создания поста (без фото — для фото используй /create) */}
       {profile && (
         <div className="bg-white p-6 rounded-2xl shadow-md border-2 border-blue-100 mb-6">
           <div className="flex justify-between items-center mb-4">
@@ -225,9 +225,11 @@ export default function FeedPage() {
       ) : (
         <div className="flex flex-col gap-5">
           {posts.map((post) => (
-            <div key={post.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition overflow-hidden">
-
-              {/* Фото если есть */}
+            <Link
+              key={post.id}
+              href={`/posts/${post.id}`}
+              className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition overflow-hidden block"
+            >
               {post.media_url && (
                 <div className="w-full h-52 overflow-hidden bg-gray-100">
                   <img
@@ -235,7 +237,6 @@ export default function FeedPage() {
                     alt={post.title}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      // Скрываем если фото не загрузилось
                       (e.target as HTMLImageElement).parentElement!.style.display = 'none';
                     }}
                   />
@@ -243,7 +244,6 @@ export default function FeedPage() {
               )}
 
               <div className="p-5">
-                {/* Категория + статус */}
                 <div className="flex justify-between items-start mb-3">
                   <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
                     {CATEGORY_LABEL[post.category] || post.category}
@@ -253,25 +253,20 @@ export default function FeedPage() {
                   </span>
                 </div>
 
-                {/* Заголовок */}
                 <h3 className="text-lg font-bold mb-2 text-gray-900 leading-snug">{post.title}</h3>
-
-                {/* Описание */}
                 <p className="text-gray-500 text-sm mb-4 line-clamp-3">{post.description}</p>
 
-                {/* Адрес если есть */}
                 {post.address && (
                   <p className="text-xs text-gray-400 mb-3 flex items-center gap-1">
                     📍 {post.address}
                   </p>
                 )}
 
-                {/* Футер */}
                 <div className="flex justify-between items-center text-sm text-gray-400 border-t pt-3">
                   <span className="text-xs">👤 {post.author_name || 'Аноним'}</span>
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => toggleVote(post.id)}
+                      onClick={(e) => toggleVote(e, post.id)}
                       className={`flex items-center gap-1 text-sm font-semibold px-3 py-1 rounded-xl transition ${
                         userVotes.has(post.id)
                           ? 'bg-blue-600 text-white'
@@ -284,7 +279,7 @@ export default function FeedPage() {
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
