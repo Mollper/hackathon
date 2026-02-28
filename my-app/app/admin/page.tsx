@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Shield, Plus, Trash2, CheckCircle, Clock, XCircle, AlertTriangle } from 'lucide-react';
+import { Shield, Plus, Trash2, CheckCircle, XCircle } from 'lucide-react';
 
 const STATUS_OPTIONS = [
   { value: 'pending',     label: 'Новая',      color: 'bg-red-100 text-red-700' },
@@ -20,6 +20,12 @@ const ALERT_TYPES = [
   { value: 'success', label: '🟢 Хорошие новости' },
 ];
 
+const CATEGORY_LABEL: Record<string, string> = {
+  road: '🛣️ Дороги', utilities: '🔧 ЖКХ', lighting: '💡 Освещение',
+  garbage: '🗑️ Мусор', greenery: '🌳 Озеленение', transport: '🚌 Транспорт',
+  safety: '🛡️ Безопасность', other: '📌 Другое',
+};
+
 export default function AdminPage() {
   const { profile, loading } = useAuth();
   const router = useRouter();
@@ -28,7 +34,6 @@ export default function AdminPage() {
   const [alerts, setAlerts] = useState<any[]>([]);
   const [tab, setTab] = useState<'posts' | 'alerts'>('posts');
 
-  // Форма нового алерта
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [alertType, setAlertType] = useState('warning');
@@ -67,6 +72,12 @@ export default function AdminPage() {
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, status } : p));
   };
 
+  const deletePost = async (postId: string) => {
+    if (!confirm('Удалить этот пост? Это действие необратимо.')) return;
+    await supabase.from('posts').delete().eq('id', postId);
+    setPosts(prev => prev.filter(p => p.id !== postId));
+  };
+
   const createAlert = async () => {
     if (!alertTitle || !alertMessage || !profile) return;
     setSaving(true);
@@ -98,12 +109,6 @@ export default function AdminPage() {
 
   if (loading) return <div className="flex items-center justify-center min-h-screen text-gray-400">Загрузка...</div>;
   if (profile?.role !== 'admin') return null;
-
-  const CATEGORY_LABEL: Record<string, string> = {
-    road: '🛣️ Дороги', utilities: '🔧 ЖКХ', lighting: '💡 Освещение',
-    garbage: '🗑️ Мусор', greenery: '🌳 Озеленение', transport: '🚌 Транспорт',
-    safety: '🛡️ Безопасность', other: '📌 Другое',
-  };
 
   return (
     <div className="max-w-4xl mx-auto p-4 md:p-8">
@@ -140,20 +145,32 @@ export default function AdminPage() {
             <div key={post.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <div className="flex justify-between items-start gap-4 flex-wrap">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-400 mb-1">{CATEGORY_LABEL[post.category]} · {post.author_name} · {new Date(post.created_at).toLocaleDateString('ru-RU')}</p>
+                  <p className="text-xs text-gray-400 mb-1">
+                    {CATEGORY_LABEL[post.category]} · {post.author_name} · {new Date(post.created_at).toLocaleDateString('ru-RU')}
+                  </p>
                   <p className="font-bold text-gray-900 truncate">{post.title}</p>
                   <p className="text-sm text-gray-500 mt-1 line-clamp-2">{post.description}</p>
                 </div>
-                {/* Смена статуса */}
-                <select
-                  value={post.status}
-                  onChange={(e) => updatePostStatus(post.id, e.target.value)}
-                  className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white font-medium"
-                >
-                  {STATUS_OPTIONS.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2">
+                  {/* Смена статуса */}
+                  <select
+                    value={post.status}
+                    onChange={(e) => updatePostStatus(post.id, e.target.value)}
+                    className="border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white font-medium"
+                  >
+                    {STATUS_OPTIONS.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  {/* Кнопка удаления */}
+                  <button
+                    onClick={() => deletePost(post.id)}
+                    className="p-2 rounded-xl bg-red-100 text-red-600 hover:bg-red-200 transition"
+                    title="Удалить пост"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
