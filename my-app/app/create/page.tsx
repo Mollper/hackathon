@@ -17,6 +17,11 @@ const CATEGORY_OPTIONS = [
   { value: 'other',     label: '📌 Другое' },
 ];
 
+// Считаем точность "хорошей" если меньше этого порога (метры)
+const ACCURACY_THRESHOLD = 50;
+// Максимум сколько ждём улучшения точности (мс)
+const GPS_TIMEOUT = 20000;
+
 export default function CreatePostPage() {
   const router = useRouter();
   const { profile } = useAuth();
@@ -29,6 +34,7 @@ export default function CreatePostPage() {
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState<number | null>(null);
   const [lng, setLng] = useState<number | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,40 +86,60 @@ export default function CreatePostPage() {
       setError('GPS недоступен на этом устройстве');
       return;
     }
+
     setGpsLoading(true);
     setAddress('Определяем геопозицию...');
+    setAccuracy(null);
 
-    const applyPosition = async (pos: GeolocationPosition) => {
-      const latVal = parseFloat(pos.coords.latitude.toFixed(5));
-      const lngVal = parseFloat(pos.coords.longitude.toFixed(5));
+    let bestPosition: GeolocationPosition | null = null;
+    let watchId: number;
+
+    const finish = async (pos: GeolocationPosition) => {
+      navigator.geolocation.clearWatch(watchId);
+      const latVal = parseFloat(pos.coords.latitude.toFixed(6));
+      const lngVal = parseFloat(pos.coords.longitude.toFixed(6));
       setLat(latVal);
       setLng(lngVal);
+      setAccuracy(Math.round(pos.coords.accuracy));
       const humanAddress = await reverseGeocode(latVal, lngVal);
       setAddress(humanAddress);
       setGpsLoading(false);
       setError(null);
     };
 
-    navigator.geolocation.getCurrentPosition(
+    // Таймер — если за GPS_TIMEOUT не достигли порога точности, берём лучшее что есть
+    const timer = setTimeout(() => {
+      if (bestPosition) {
+        finish(bestPosition);
+      }
+    }, GPS_TIMEOUT);
+
+    watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        if (pos.coords.accuracy > 500) {
-          navigator.geolocation.getCurrentPosition(
-            (pos2) => applyPosition(pos2),
-            () => applyPosition(pos),
-            { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 }
-          );
-          return;
+        // Показываем текущую точность пока ищем лучше
+        setAccuracy(Math.round(pos.coords.accuracy));
+
+        // Сохраняем лучшую позицию
+        if (!bestPosition || pos.coords.accuracy < bestPosition.coords.accuracy) {
+          bestPosition = pos;
         }
-        applyPosition(pos);
+
+        // Если точность уже хорошая — сразу заканчиваем, не ждём таймаут
+        if (pos.coords.accuracy <= ACCURACY_THRESHOLD) {
+          clearTimeout(timer);
+          finish(pos);
+        }
       },
       (err) => {
+        clearTimeout(timer);
+        navigator.geolocation.clearWatch(watchId);
         setAddress('');
         setGpsLoading(false);
         if (err.code === 1) setError('Разрешите доступ к геолокации в настройках браузера');
         else if (err.code === 2) setError('GPS недоступен. Попробуйте на улице');
         else setError('Не удалось получить локацию, попробуйте ещё раз');
       },
-      { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: GPS_TIMEOUT }
     );
   };
 
@@ -166,6 +192,18 @@ export default function CreatePostPage() {
 
   const canSubmit = !isLoading && title.trim().length > 2 && description.trim().length > 2;
 
+  const accuracyColor =
+    accuracy === null ? '' :
+    accuracy <= 20 ? 'text-green-600' :
+    accuracy <= 100 ? 'text-yellow-600' :
+    'text-red-500';
+
+  const accuracyLabel =
+    accuracy === null ? '' :
+    accuracy <= 20 ? `✅ Точность: ~${accuracy} м` :
+    accuracy <= 100 ? `⚠️ Точность: ~${accuracy} м` :
+    `❗ Низкая точность: ~${accuracy} м`;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-28">
       {/* Шапка */}
@@ -202,7 +240,6 @@ export default function CreatePostPage() {
             </div>
           ) : (
             <div className="flex gap-3">
-              {/* Камера */}
               <button
                 type="button"
                 onClick={() => cameraInputRef.current?.click()}
@@ -214,7 +251,6 @@ export default function CreatePostPage() {
                 <span className="text-xs font-medium text-gray-500">Камера</span>
               </button>
 
-              {/* Галерея */}
               <button
                 type="button"
                 onClick={() => galleryInputRef.current?.click()}
@@ -228,7 +264,6 @@ export default function CreatePostPage() {
             </div>
           )}
 
-          {/* Скрытые инпуты */}
           <input
             type="file"
             accept="image/*"
@@ -313,9 +348,16 @@ export default function CreatePostPage() {
               {gpsLoading ? '' : 'GPS'}
             </button>
           </div>
-          {lat && lng && (
-            <p className="text-xs text-green-600 flex items-center gap-1">
-              ✅ Координаты сохранятся на карте
+
+          {/* Индикатор точности */}
+          {gpsLoading && accuracy !== null && (
+            <p className={`text-xs flex items-center gap-1 ${accuracyColor}`}>
+              🔄 Улучшаем точность... ~{accuracy} м
+            </p>
+          )}
+          {!gpsLoading && accuracy !== null && (
+            <p className={`text-xs flex items-center gap-1 ${accuracyColor}`}>
+              {accuracyLabel}
             </p>
           )}
         </div>
