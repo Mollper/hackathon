@@ -32,7 +32,6 @@ export default function AIAssistant() {
     startPointer.current = { x: e.clientX, y: e.clientY };
     startPos.current = { ...pos };
     e.currentTarget.setPointerCapture(e.pointerId);
-    e.preventDefault();
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
@@ -40,17 +39,15 @@ export default function AIAssistant() {
     const dx = e.clientX - startPointer.current.x;
     const dy = e.clientY - startPointer.current.y;
 
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) hasMoved.current = true;
+    if (Math.abs(dx) > 8 || Math.abs(dy) > 8) hasMoved.current = true;
 
     const el = btnRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
 
-    // pos — смещение относительно дефолтной позиции (right-4 bottom-24/bottom-8)
     const newX = startPos.current.x + dx;
     const newY = startPos.current.y + dy;
 
-    // Не даём кнопке уйти за края экрана
     const minX = -(window.innerWidth - rect.width - 16);
     const maxX = 0;
     const minY = -(window.innerHeight - rect.height - 16);
@@ -62,15 +59,18 @@ export default function AIAssistant() {
     });
   };
 
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!dragging.current) return;
     dragging.current = false;
-    // Сбрасываем hasMoved после того как onClick успеет сработать
-    setTimeout(() => { hasMoved.current = false; }, 50);
+    if (!hasMoved.current) {
+      setIsOpen(prev => !prev);
+    }
+    hasMoved.current = false;
   };
 
-  const handleToggle = () => {
-    if (hasMoved.current) return;
-    setIsOpen(prev => !prev);
+  const onPointerCancel = () => {
+    dragging.current = false;
+    hasMoved.current = false;
   };
 
   // --- Chat ---
@@ -171,10 +171,10 @@ export default function AIAssistant() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        style={{ cursor: dragging.current ? 'grabbing' : 'grab' }}
+        onPointerCancel={onPointerCancel}
+        style={{ cursor: 'grab' }}
       >
         <button
-          onClick={handleToggle}
           className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 transition-all duration-300 ${
             isOpen ? 'bg-[#2b2d31] rotate-90' : 'bg-[#5181b8] animate-bounce'
           }`}
