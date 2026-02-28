@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Mail, Lock, LogIn, UserPlus, User, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import Link from 'next/link';
 
 type Screen = 'login' | 'register' | 'check-email';
 
@@ -27,7 +28,6 @@ export default function LoginPage() {
     setLoading(true);
     const { error } = await signIn(email, password);
     if (error) {
-      // Понятные сообщения об ошибках
       if (error.includes('Invalid login')) setError('Неверный email или пароль');
       else if (error.includes('Email not confirmed')) setError('Сначала подтвердите email — проверьте почту');
       else setError(error);
@@ -61,18 +61,21 @@ export default function LoginPage() {
     setResendLoading(false);
   };
 
-  // Экран "проверьте почту"
   if (screen === 'check-email') {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
+        {/* Кнопка назад */}
+        <Link href="/" className="fixed top-6 left-6 flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+          <ArrowLeft size={18} />
+          <span className="hidden sm:inline">На главную</span>
+        </Link>
+
         <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 p-8 text-center">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Mail size={32} className="text-blue-600" />
           </div>
           <h1 className="text-2xl font-black text-gray-900 mb-2">Проверьте почту</h1>
-          <p className="text-gray-500 text-sm mb-2">
-            Мы отправили письмо на
-          </p>
+          <p className="text-gray-500 text-sm mb-2">Мы отправили письмо на</p>
           <p className="font-bold text-blue-600 mb-6">{email}</p>
           <p className="text-gray-400 text-xs mb-8 leading-relaxed">
             Нажмите на ссылку в письме чтобы подтвердить аккаунт. Если письма нет — проверьте папку «Спам».
@@ -107,6 +110,14 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center p-4">
+      {/* Кнопка назад на главную */}
+      <Link href="/" className="fixed top-6 left-6 flex items-center gap-2 text-sm text-gray-400 hover:text-gray-700 transition-colors group">
+        <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
+          <ArrowLeft size={16} />
+        </div>
+        <span className="hidden sm:inline font-medium">На главную</span>
+      </Link>
+
       <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 p-8">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-black text-blue-600 mb-2">MyVille</h1>
