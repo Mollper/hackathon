@@ -102,7 +102,7 @@ export default function CreatePostPage() {
       setLng(lngVal);
       setAccuracy(Math.round(pos.coords.accuracy));
       const humanAddress = await reverseGeocode(latVal, lngVal);
-      setAddress(humanAddress);
+      setAddress(`${humanAddress} (${latVal}, ${lngVal})`);
       setGpsLoading(false);
       setError(null);
     };
