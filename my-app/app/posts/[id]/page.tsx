@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowLeft, MapPin, ThumbsUp, Send } from 'lucide-react';
+import { ArrowLeft, MapPin, ThumbsUp, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 
 const STATUS_STYLE: Record<string, string> = {
@@ -33,6 +33,7 @@ export default function PostDetailPage() {
   const [voted, setVoted] = useState(false);
   const [commentText, setCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -83,6 +84,14 @@ export default function PostDetailPage() {
     }
   };
 
+  const deletePost = async () => {
+    if (!profile || !post) return;
+    if (!confirm('Удалить этот пост? Это действие необратимо.')) return;
+    setDeleting(true);
+    await supabase.from('posts').delete().eq('id', post.id).eq('author_id', profile.id);
+    router.push('/feed');
+  };
+
   const submitComment = async () => {
     if (!profile || !commentText.trim()) return;
     setSubmittingComment(true);
@@ -107,6 +116,8 @@ export default function PostDetailPage() {
     </div>
   );
 
+  const isOwner = profile?.id === post.author_id;
+
   return (
     <div className="max-w-2xl mx-auto pb-24">
 
@@ -119,6 +130,17 @@ export default function PostDetailPage() {
         <span className={`text-xs font-bold px-3 py-1 rounded-full shrink-0 ${STATUS_STYLE[post.status] || 'bg-gray-100 text-gray-600'}`}>
           {STATUS_LABEL[post.status] || post.status}
         </span>
+        {/* Кнопка удаления для автора */}
+        {isOwner && (
+          <button
+            onClick={deletePost}
+            disabled={deleting}
+            className="p-2 rounded-xl bg-red-100 text-red-500 hover:bg-red-200 transition shrink-0"
+            title="Удалить пост"
+          >
+            <Trash2 size={18} />
+          </button>
+        )}
       </div>
 
       {/* Фото */}
