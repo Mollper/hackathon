@@ -1,21 +1,54 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Settings, Award, CheckCircle, Clock, Moon, Sun } from 'lucide-react';
-import Link from 'next/link'; // <-- Добавили импорт для перехода по страницам
+import { Settings, CheckCircle, Clock, Moon, Sun, XCircle } from 'lucide-react';
+import Link from 'next/link';
+import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
+
+const ROLE_LABELS: Record<string, { label: string; color: string }> = {
+  citizen:   { label: '👤 Активный горожанин', color: 'bg-amber-100 text-amber-700' },
+  moderator: { label: '🛡️ Модератор',          color: 'bg-blue-100 text-blue-700' },
+  admin:     { label: '⚡ Администратор',       color: 'bg-purple-100 text-purple-700' },
+};
+
+const STATUS_LABEL: Record<string, { label: string; className: string }> = {
+  pending:     { label: 'Новая',      className: 'bg-red-100 text-red-700' },
+  in_progress: { label: 'В работе',   className: 'bg-yellow-100 text-yellow-700' },
+  resolved:    { label: 'Решено',     className: 'bg-green-100 text-green-700' },
+  rejected:    { label: 'Отклонено',  className: 'bg-gray-100 text-gray-600' },
+};
 
 export default function ProfilePage() {
+  const { profile, loading } = useAuth();
   const [isDark, setIsDark] = useState(false);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [stats, setStats] = useState({ resolved: 0, inProgress: 0, rejected: 0 });
 
-  // При заходе в профиль проверяем, какая тема сейчас сохранена
   useEffect(() => {
-    if (localStorage.getItem('theme') === 'dark') {
-      setIsDark(true);
-    }
+    if (localStorage.getItem('theme') === 'dark') setIsDark(true);
   }, []);
 
-  // Функция переключения: меняет всё приложение и сохраняет навсегда
-  const toggleGlobalTheme = () => {
+  useEffect(() => {
+    if (!profile) return;
+    supabase
+      .from('posts')
+      .select('*')
+      .eq('author_id', profile.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) {
+          setPosts(data);
+          setStats({
+            resolved:   data.filter(p => p.status === 'resolved').length,
+            inProgress: data.filter(p => p.status === 'in_progress').length,
+            rejected:   data.filter(p => p.status === 'rejected').length,
+          });
+        }
+      });
+  }, [profile]);
+
+  const toggleTheme = () => {
     if (isDark) {
       document.documentElement.classList.remove('dark');
       localStorage.setItem('theme', 'light');
@@ -27,89 +60,129 @@ export default function ProfilePage() {
     }
   };
 
-  return (
-    <div className="p-4 md:p-8 transition-colors duration-300">
-      
-      {/* Шапка с умной кнопкой и настройками */}
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-extrabold text-gray-900">Мой профиль</h1>
-        
-        {/* Обернули кнопки в один блок, чтобы они стояли рядом */}
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={toggleGlobalTheme}
-            className="p-3 rounded-2xl bg-white transition-all shadow-sm border border-gray-200 flex items-center gap-2 font-medium text-sm text-gray-900"
-          >
-            {isDark ? <><Sun size={18} className="text-yellow-500" /> Светлая</> : <><Moon size={18} className="text-blue-600" /> Темная</>}
-          </button>
+  const timeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return 'Сегодня';
+    if (days === 1) return '1 день назад';
+    if (days < 7) return `${days} дн. назад`;
+    if (days < 30) return `${Math.floor(days / 7)} нед. назад`;
+    return `${Math.floor(days / 30)} мес. назад`;
+  };
 
-          {/* <-- НОВАЯ КНОПКА НАСТРОЕК --> */}
-          <Link 
-            href="/settings"
-            className="p-3 rounded-2xl bg-white transition-all shadow-sm border border-gray-200 flex items-center justify-center text-gray-900 hover:bg-gray-50 active:scale-95"
+  if (loading) return (
+    <div className="p-8 flex items-center justify-center min-h-screen">
+      <p className="text-gray-400">Загрузка...</p>
+    </div>
+  );
+
+  if (!profile) return (
+    <div className="p-8 flex flex-col items-center justify-center min-h-screen gap-4">
+      <p className="text-gray-600">Вы не вошли в аккаунт</p>
+      <Link href="/login" className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold">
+        Войти
+      </Link>
+    </div>
+  );
+
+  const initials = profile.full_name?.charAt(0)?.toUpperCase() || profile.email?.charAt(0)?.toUpperCase() || '?';
+  const roleInfo = ROLE_LABELS[profile.role] || ROLE_LABELS.citizen;
+
+  return (
+    <div className="p-4 md:p-8 max-w-2xl mx-auto">
+
+      {/* Шапка */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-extrabold text-gray-900">Мой профиль</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleTheme}
+            className="p-2.5 rounded-2xl bg-white shadow-sm border border-gray-200 flex items-center gap-1.5 font-medium text-sm text-gray-700"
           >
+            {isDark ? <><Sun size={16} className="text-yellow-500" /> Свет</> : <><Moon size={16} className="text-blue-600" /> Темная</>}
+          </button>
+          <Link href="/settings" className="p-2.5 rounded-2xl bg-white shadow-sm border border-gray-200 text-gray-700 hover:bg-gray-50 transition">
             <Settings size={20} />
           </Link>
         </div>
       </div>
 
       {/* Карточка пользователя */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row items-center md:items-start gap-6 mb-8 relative overflow-hidden">
-        <div className="w-24 h-24 min-w-[6rem] bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-white text-4xl font-bold shadow-lg z-10">
-          А
+      <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex items-center gap-5 mb-6">
+        <div className="w-20 h-20 shrink-0 rounded-full overflow-hidden shadow-md">
+          {profile.avatar_url
+            ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+            : <div className="w-full h-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold">{initials}</div>
+          }
         </div>
-        
-        <div className="flex-1 text-center md:text-left z-10">
-          <h2 className="text-2xl font-bold mb-1 text-gray-900">Айдос Н.</h2>
-          <p className="text-sm mb-3 text-gray-500">Петропавловск</p>
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
-            <Award size={14} /> Активный горожанин
-          </div>
-        </div>
-      </div>
-
-      {/* Блок статистики */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
-          <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-3">
-            <CheckCircle size={24} />
-          </div>
-          <span className="text-3xl font-black mb-1 text-gray-900">12</span>
-          <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Решено</span>
-        </div>
-        
-        <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
-          <div className="w-12 h-12 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mb-3">
-            <Clock size={24} />
-          </div>
-          <span className="text-3xl font-black mb-1 text-gray-900">3</span>
-          <span className="text-xs font-medium uppercase tracking-wider text-gray-500">В работе</span>
-        </div>
-      </div>
-
-      {/* История обращений */}
-      <h3 className="text-xl font-bold mb-4 text-gray-900">Мои обращения</h3>
-      <div className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100 space-y-5">
-        <div className="flex justify-between items-center border-b border-gray-50 pb-5">
-          <div>
-            <p className="font-semibold text-base mb-1 text-gray-900">Глубокая лужа у подъезда</p>
-            <p className="text-xs text-gray-500">ул. Абая 45 • 2 дня назад</p>
-          </div>
-          <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold uppercase tracking-wider">
-            В работе
-          </span>
-        </div>
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="font-semibold text-base mb-1 text-gray-900">Сломанная скамейка</p>
-            <p className="text-xs text-gray-500">Парк Победы • Неделю назад</p>
-          </div>
-          <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-wider">
-            Решено
+        <div className="flex-1 min-w-0">
+          <h2 className="text-xl font-bold text-gray-900 truncate">{profile.full_name || 'Без имени'}</h2>
+          <p className="text-sm text-gray-400 mb-2 truncate">{profile.city || 'Город не указан'}</p>
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${roleInfo.color}`}>
+            {roleInfo.label}
           </span>
         </div>
       </div>
 
+      {/* Статистика */}
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+          <div className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-2">
+            <CheckCircle size={20} />
+          </div>
+          <span className="text-2xl font-black text-gray-900">{stats.resolved}</span>
+          <span className="text-xs text-gray-400 mt-0.5 text-center">Решено</span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+          <div className="w-10 h-10 bg-yellow-100 text-yellow-600 rounded-full flex items-center justify-center mb-2">
+            <Clock size={20} />
+          </div>
+          <span className="text-2xl font-black text-gray-900">{stats.inProgress}</span>
+          <span className="text-xs text-gray-400 mt-0.5 text-center">В работе</span>
+        </div>
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center">
+          <div className="w-10 h-10 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center mb-2">
+            <XCircle size={20} />
+          </div>
+          <span className="text-2xl font-black text-gray-900">{stats.rejected}</span>
+          <span className="text-xs text-gray-400 mt-0.5 text-center">Отклонено</span>
+        </div>
+      </div>
+
+      {/* Ссылка на админку для админов */}
+      {profile.role === 'admin' && (
+        <Link
+          href="/admin"
+          className="flex items-center justify-center gap-2 w-full py-3 bg-gray-900 text-white rounded-2xl font-semibold text-sm hover:bg-gray-700 transition mb-6"
+        >
+          ⚡ Панель администратора
+        </Link>
+      )}
+
+      {/* Мои обращения */}
+      <h3 className="text-lg font-bold mb-3 text-gray-900">Мои обращения ({posts.length})</h3>
+      <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+        {posts.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-8">Вы ещё не создавали обращений</p>
+        ) : (
+          <div className="divide-y divide-gray-50">
+            {posts.map((post) => {
+              const s = STATUS_LABEL[post.status] || STATUS_LABEL.pending;
+              return (
+                <Link href={`/posts/${post.id}`} key={post.id} className="flex justify-between items-center p-4 hover:bg-gray-50 transition">
+                  <div className="flex-1 min-w-0 pr-3">
+                    <p className="font-semibold text-sm text-gray-900 truncate">{post.title}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{timeAgo(post.created_at)}</p>
+                  </div>
+                  <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-bold ${s.className}`}>
+                    {s.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
