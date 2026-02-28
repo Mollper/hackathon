@@ -98,81 +98,6 @@ function RightSidebar() {
   );
 }
 
-// Обёртка которая делает AIAssistant перетаскиваемым
-function DraggableAIAssistant() {
-  const ref = useRef<HTMLDivElement>(null);
-  // Начальная позиция — правый нижний угол (над навигацией)
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-  const dragging = useRef(false);
-  const startPointer = useRef({ x: 0, y: 0 });
-  const startPos = useRef({ x: 0, y: 0 });
-  // Флаг — было ли реальное перемещение (чтобы не блокировать клик)
-  const hasMoved = useRef(false);
-
-  const onPointerDown = (e: React.PointerEvent) => {
-    // Начинаем drag только по самой кнопке-кружку (не по открытому чату)
-    const target = e.target as HTMLElement;
-    const isButton = target.closest('[data-ai-drag-handle]');
-    if (!isButton) return;
-
-    dragging.current = true;
-    hasMoved.current = false;
-    startPointer.current = { x: e.clientX, y: e.clientY };
-    startPos.current = { ...pos };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-
-  const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging.current) return;
-    const dx = e.clientX - startPointer.current.x;
-    const dy = e.clientY - startPointer.current.y;
-
-    // Считаем что началось движение если сдвинулись больше 5px
-    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) hasMoved.current = true;
-
-    // Вычисляем новую позицию с учётом границ экрана
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const newX = startPos.current.x + dx;
-    const newY = startPos.current.y + dy;
-
-    // Не даём выйти за края экрана
-    const maxX = window.innerWidth - rect.width;
-    const maxY = window.innerHeight - rect.height;
-    setPos({
-      x: Math.max(-window.innerWidth + rect.width, Math.min(0, newX)),
-      y: Math.max(-window.innerHeight + rect.height, Math.min(0, newY)),
-    });
-  };
-
-  const onPointerUp = () => {
-    dragging.current = false;
-  };
-
-  return (
-    <div
-      ref={ref}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      style={{
-        transform: `translate(${pos.x}px, ${pos.y}px)`,
-        // Плавная анимация только когда НЕ тащим
-        transition: dragging.current ? 'none' : 'transform 0.1s ease',
-        // touch-action: none — обязательно для тач-устройств
-        touchAction: 'none',
-      }}
-      // data-moved передаём в AIAssistant чтобы он мог заблокировать клик после drag
-      data-moved={hasMoved.current}
-    >
-      {/* data-ai-drag-handle — маркер для определения что тащим именно кнопку */}
-      <div data-ai-drag-handle="true">
-        <AIAssistant isDragging={dragging} hasMoved={hasMoved} />
-      </div>
-    </div>
-  );
-}
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -216,7 +141,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           {children}
         </main>
 
-        <DraggableAIAssistant />
+        <AIAssistant />
         <RightSidebar />
 
         {/* НИЖНЯЯ ПАНЕЛЬ (мобильная) */}
