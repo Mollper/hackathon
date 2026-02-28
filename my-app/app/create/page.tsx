@@ -55,6 +55,26 @@ export default function CreatePostPage() {
     if (galleryInputRef.current) galleryInputRef.current.value = '';
   };
 
+  const reverseGeocode = async (latVal: number, lngVal: number): Promise<string> => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latVal}&lon=${lngVal}&format=json&accept-language=ru`,
+        { headers: { 'User-Agent': 'CityReportApp/1.0' } }
+      );
+      const data = await res.json();
+      const a = data.address;
+      const parts = [
+        a.road || a.pedestrian || a.footway || a.path,
+        a.house_number,
+      ].filter(Boolean);
+      const street = parts.join(', ');
+      const city = a.city || a.town || a.village || a.municipality || '';
+      return [street, city].filter(Boolean).join(', ') || data.display_name || `${latVal}, ${lngVal}`;
+    } catch {
+      return `${latVal}, ${lngVal}`;
+    }
+  };
+
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
       setError('GPS недоступен на этом устройстве');
@@ -62,38 +82,29 @@ export default function CreatePostPage() {
     }
     setGpsLoading(true);
     setAddress('Определяем геопозицию...');
+
+    const applyPosition = async (pos: GeolocationPosition) => {
+      const latVal = parseFloat(pos.coords.latitude.toFixed(5));
+      const lngVal = parseFloat(pos.coords.longitude.toFixed(5));
+      setLat(latVal);
+      setLng(lngVal);
+      const humanAddress = await reverseGeocode(latVal, lngVal);
+      setAddress(humanAddress);
+      setGpsLoading(false);
+      setError(null);
+    };
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         if (pos.coords.accuracy > 500) {
           navigator.geolocation.getCurrentPosition(
-            (pos2) => {
-              const latVal = parseFloat(pos2.coords.latitude.toFixed(5));
-              const lngVal = parseFloat(pos2.coords.longitude.toFixed(5));
-              setLat(latVal);
-              setLng(lngVal);
-              setAddress(`${latVal}, ${lngVal}`);
-              setGpsLoading(false);
-              setError(null);
-            },
-            () => {
-              const latVal = parseFloat(pos.coords.latitude.toFixed(5));
-              const lngVal = parseFloat(pos.coords.longitude.toFixed(5));
-              setLat(latVal);
-              setLng(lngVal);
-              setAddress(`${latVal}, ${lngVal}`);
-              setGpsLoading(false);
-            },
+            (pos2) => applyPosition(pos2),
+            () => applyPosition(pos),
             { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 }
           );
           return;
         }
-        const latVal = parseFloat(pos.coords.latitude.toFixed(5));
-        const lngVal = parseFloat(pos.coords.longitude.toFixed(5));
-        setLat(latVal);
-        setLng(lngVal);
-        setAddress(`${latVal}, ${lngVal}`);
-        setGpsLoading(false);
-        setError(null);
+        applyPosition(pos);
       },
       (err) => {
         setAddress('');
