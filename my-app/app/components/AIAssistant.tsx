@@ -64,10 +64,11 @@ export default function AIAssistant() {
 
   const onPointerUp = () => {
     dragging.current = false;
+    // Сбрасываем hasMoved после того как onClick успеет сработать
+    setTimeout(() => { hasMoved.current = false; }, 50);
   };
 
   const handleToggle = () => {
-    // Не открываем/закрываем если был drag
     if (hasMoved.current) return;
     setIsOpen(prev => !prev);
   };
@@ -170,15 +171,13 @@ export default function AIAssistant() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onClick={handleToggle}
         style={{ cursor: dragging.current ? 'grabbing' : 'grab' }}
       >
         <button
+          onClick={handleToggle}
           className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-110 transition-all duration-300 ${
             isOpen ? 'bg-[#2b2d31] rotate-90' : 'bg-[#5181b8] animate-bounce'
           }`}
-          // Блокируем нативный клик — обрабатываем через onClick на обёртке
-          onClick={(e) => e.stopPropagation()}
         >
           {isOpen ? <X size={24} /> : <Bot size={28} />}
         </button>
