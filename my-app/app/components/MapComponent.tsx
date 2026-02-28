@@ -32,6 +32,9 @@ const CATEGORY_LABEL: Record<string, string> = {
   safety: '🛡️ Безопасность', other: '📌 Другое',
 };
 
+// Координаты центра Петропавловска
+const PETROPAVL_CENTER: [number, number] = [54.8645, 69.1427];
+
 function createColoredIcon(status: string) {
   const color = STATUS_COLOR[status] || '#9ca3af';
   return L.divIcon({
@@ -70,7 +73,6 @@ interface MapComponentProps {
 }
 
 export default function MapComponent({ posts = [] }: MapComponentProps) {
-  // Фильтруем только посты с валидными координатами
   const validPosts = posts.filter(p => {
     const lat = parseFloat(String(p.lat));
     const lng = parseFloat(String(p.lng));
@@ -80,9 +82,18 @@ export default function MapComponent({ posts = [] }: MapComponentProps) {
   return (
     <div className="h-full w-full rounded-2xl overflow-hidden shadow-lg border-2 border-gray-100">
       <MapContainer
-        center={[50.2839, 57.1670]}
+        center={PETROPAVL_CENTER}
         zoom={13}
         style={{ height: '100%', width: '100%' }}
+        // Ограничиваем зум чтобы не уйти слишком далеко
+        minZoom={11}
+        maxZoom={19}
+        // Ограничиваем область карты — не даём уйти далеко от Петропавловска
+        maxBounds={[
+          [54.70, 68.85],   // юго-запад
+          [55.02, 69.50],   // северо-восток
+        ]}
+        maxBoundsViscosity={0.8}
       >
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -100,7 +111,6 @@ export default function MapComponent({ posts = [] }: MapComponentProps) {
             >
               <Popup maxWidth={260}>
                 <div className="p-1">
-                  {/* Фото если есть */}
                   {post.media_url && (
                     <img
                       src={post.media_url}
@@ -110,7 +120,6 @@ export default function MapComponent({ posts = [] }: MapComponentProps) {
                     />
                   )}
 
-                  {/* Категория и статус */}
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-blue-600 font-semibold">
                       {CATEGORY_LABEL[post.category] || post.category}
